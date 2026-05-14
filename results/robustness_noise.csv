@@ -1,0 +1,12 @@
+scenario,param,detected
+noise,000,1
+noise,005,1
+noise,010,1
+noise,015,1
+noise,020,1
+noise,025,1
+noise,035,1
+noise,050,1
+noise,075,1
+noise,100,0
+noise,150,0

@@ -1,0 +1,12 @@
+scenario,param,detected
+blur,001,1
+blur,003,1
+blur,005,1
+blur,007,1
+blur,011,1
+blur,015,1
+blur,021,1
+blur,031,1
+blur,051,1
+blur,071,0
+blur,101,0

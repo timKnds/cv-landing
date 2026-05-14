@@ -1,0 +1,10 @@
+[project]
+name = "cv-landing-scripts"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.8",
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+    "pyyaml>=6.0",
+]

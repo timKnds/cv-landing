@@ -1,0 +1,16 @@
+scenario,param,detected
+brightness,+000pct,1
+brightness,+015pct,1
+brightness,+030pct,1
+brightness,+045pct,1
+brightness,+060pct,1
+brightness,+075pct,1
+brightness,+085pct,1
+brightness,+095pct,1
+brightness,-015pct,1
+brightness,-030pct,1
+brightness,-045pct,1
+brightness,-060pct,1
+brightness,-075pct,1
+brightness,-085pct,1
+brightness,-095pct,0

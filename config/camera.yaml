@@ -1,0 +1,13 @@
+# Camera parameters @ 1280x720
+# Replace with cv::calibrateCamera() output for the specific camera unit in production
+fx: 820.0
+fy: 820.0
+cx: 640.0
+cy: 360.0
+k1: -0.35
+k2:  0.13
+p1:  0.0
+p2:  0.0
+marker_size_m: 0.5
+aruco_dictionary: "DICT_4X4_50"
+corner_refinement: "CORNER_REFINE_SUBPIX"
