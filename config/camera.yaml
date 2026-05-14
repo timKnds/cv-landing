@@ -1,3 +1,4 @@
+%YAML:1.0
 # Camera parameters @ 1280x720
 # Replace with cv::calibrateCamera() output for the specific camera unit in production
 fx: 820.0
