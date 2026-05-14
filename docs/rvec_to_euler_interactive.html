@@ -1,0 +1,230 @@
+
+<style>
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+.wrap{display:flex;gap:20px;align-items:flex-start;padding:1rem 0 0;}
+.left{flex:0 0 200px;}
+.right{flex:1;min-width:0;}
+canvas{display:block;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);}
+.sl-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px;}
+.sl-row label{min-width:66px;color:var(--color-text-secondary);}
+.sl-row input{flex:1;}
+.sl-row span{min-width:40px;text-align:right;font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);}
+.sec{font-size:10px;color:var(--color-text-tertiary);letter-spacing:.05em;text-transform:uppercase;margin:12px 0 4px;}
+.mat-wrap{display:flex;align-items:center;gap:6px;margin:6px 0;}
+.mat-bracket{font-size:26px;color:var(--color-text-tertiary);font-weight:200;line-height:1;flex-shrink:0;}
+.mat{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;flex:1;}
+.cell{border-radius:4px;padding:5px 3px;text-align:center;font-family:var(--font-mono);font-size:11px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-secondary);transition:background .15s,color .15s,border-color .15s;}
+.cell.yaw{background:rgba(55,138,221,.18);border-color:rgba(55,138,221,.5);color:#185FA5;}
+.cell.pitch{background:rgba(226,75,74,.18);border-color:rgba(226,75,74,.5);color:#A32D2D;}
+.cell.roll{background:rgba(99,153,34,.18);border-color:rgba(99,153,34,.5);color:#3B6D11;}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--color-text-tertiary);margin:4px 0 10px;}
+.formula{font-family:var(--font-mono);font-size:12px;color:var(--color-text-secondary);margin:3px 0;line-height:1.6;}
+.formula b{font-weight:500;}
+.ang-row{display:flex;align-items:center;gap:8px;margin:6px 0;}
+.ang-lbl{font-size:13px;font-weight:500;min-width:40px;}
+.ang-track{flex:1;height:8px;background:var(--color-background-secondary);border-radius:4px;border:0.5px solid var(--color-border-tertiary);overflow:hidden;}
+.ang-fill{height:100%;border-radius:4px;transition:width .08s;}
+.ang-val{min-width:54px;text-align:right;font-family:var(--font-mono);font-size:12px;font-weight:500;}
+</style>
+<h2 class="sr-only">Interaktive Rodrigues-zu-Euler-Transformation: Achse und Winkel einstellen, R-Matrix und Euler-Winkel live beobachten.</h2>
+
+<div class="wrap">
+<div class="left">
+  <canvas id="cv" width="200" height="200"></canvas>
+  <div class="sec">Rotationsachse n̂</div>
+  <div class="sl-row"><label>Azimut</label><input type="range" id="az" min="0" max="359" value="50" step="1" oninput="go()"><span id="azv">50°</span></div>
+  <div class="sl-row"><label>Elevation</label><input type="range" id="el" min="-80" max="80" value="25" step="1" oninput="go()"><span id="elv">25°</span></div>
+  <div class="sec">Rotationswinkel θ</div>
+  <div class="sl-row"><label>θ</label><input type="range" id="th" min="1" max="175" value="50" step="1" oninput="go()"><span id="thv">50°</span></div>
+  <div style="margin-top:8px;font-size:11px;color:var(--color-text-tertiary);">
+    <span style="color:#EF9F27">─ n̂</span> Achse &nbsp;
+    <span style="color:#A78BFA">─ rvec</span>
+  </div>
+</div>
+
+<div class="right">
+  <div class="sec">rvec = n̂ · θ</div>
+  <div style="font-family:var(--font-mono);font-size:12px;color:var(--color-text-secondary);margin-bottom:2px;">
+    3×1 Vektor: <span id="rv" style="color:var(--color-text-primary);">[…]</span>
+  </div>
+
+  <div class="sec">cv2.Rodrigues(rvec) → R</div>
+  <div style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary);margin-bottom:4px;">R = I·cosθ + (1−cosθ)·nnᵀ + [n]ₓ·sinθ</div>
+  <div class="mat-wrap">
+    <span class="mat-bracket">[</span>
+    <div class="mat" id="mat"></div>
+    <span class="mat-bracket">]</span>
+  </div>
+  <div class="legend">
+    <span><span style="color:#185FA5">■</span> Yaw</span>
+    <span><span style="color:#A32D2D">■</span> Pitch</span>
+    <span><span style="color:#3B6D11">■</span> Roll</span>
+    <span>□ nicht genutzt</span>
+  </div>
+
+  <div class="sec">Euler-Ableitung via atan2 (ZYX)</div>
+  <div class="formula" id="fy">yaw &nbsp; = atan2(R[1][0], R[0][0])</div>
+  <div class="formula" id="fp">pitch = atan2(−R[2][0], sy)</div>
+  <div class="formula" id="fr">roll &nbsp;= atan2(R[2][1], R[2][2])</div>
+
+  <div style="margin-top:10px;">
+    <div class="ang-row">
+      <span class="ang-lbl" style="color:#185FA5">Yaw</span>
+      <div class="ang-track"><div class="ang-fill" id="yb" style="background:#378ADD;"></div></div>
+      <span class="ang-val" id="yv" style="color:#185FA5">0.0°</span>
+    </div>
+    <div class="ang-row">
+      <span class="ang-lbl" style="color:#A32D2D">Pitch</span>
+      <div class="ang-track"><div class="ang-fill" id="pb" style="background:#E24B4A;"></div></div>
+      <span class="ang-val" id="pv" style="color:#A32D2D">0.0°</span>
+    </div>
+    <div class="ang-row">
+      <span class="ang-lbl" style="color:#3B6D11">Roll</span>
+      <div class="ang-track"><div class="ang-fill" id="rb" style="background:#639922;"></div></div>
+      <span class="ang-val" id="rv2" style="color:#3B6D11">0.0°</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),W=200,H=200,CX=100,CY=100,SR=72;
+const dark=()=>matchMedia('(prefers-color-scheme: dark)').matches;
+const gc=()=>dark()?'#2e3348':'#c8c6bc';
+const tc=()=>dark()?'#9c9a92':'#73726c';
+const CELL_MAP={'0,0':'yaw','1,0':'yaw','2,0':'pitch','2,1':'roll','2,2':'roll'};
+
+function pr(x,y,z){return[CX+x*SR+0.38*y*SR*0.65,CY-z*SR-0.22*y*SR*0.65];}
+
+function arrow2d(x0,y0,x1,y1,col,lw=1.5){
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash([]);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),s=9;
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-s*Math.cos(a-.42),y1-s*Math.sin(a-.42));
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-s*Math.cos(a+.42),y1-s*Math.sin(a+.42));
+  ctx.lineWidth=1.2;ctx.stroke();
+}
+
+function drawSphere(nx,ny,nz,theta){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=dark()?'#12141e':'#f5f4f0';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle=gc();ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(CX,CY,SR,0,2*Math.PI);ctx.stroke();
+
+  for(let lat=-60;lat<=60;lat+=30){
+    ctx.beginPath();ctx.lineWidth=0.35;ctx.strokeStyle=gc();
+    for(let a=0;a<=360;a+=4){
+      const ar=a*Math.PI/180,lr=lat*Math.PI/180;
+      const [px,py]=pr(Math.cos(ar)*Math.cos(lr),Math.sin(ar)*Math.cos(lr),Math.sin(lr));
+      a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }ctx.stroke();
+  }
+  for(let lon=0;lon<180;lon+=30){
+    ctx.beginPath();ctx.lineWidth=0.35;ctx.strokeStyle=gc();
+    for(let a=0;a<=360;a+=4){
+      const ar=a*Math.PI/180,lr=lon*Math.PI/180;
+      const [px,py]=pr(Math.cos(lr)*Math.cos(ar),Math.sin(lr)*Math.cos(ar),Math.sin(ar));
+      a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }ctx.stroke();
+  }
+
+  ctx.globalAlpha=0.35;
+  const axes=[[1,0,0,'#378ADD','X'],[0,1,0,'#1D9E75','Y'],[0,0,1,'#888780','Z']];
+  for(const[dx,dy,dz,col,lab] of axes){
+    const[x0,y0]=pr(0,0,0),[x1,y1]=pr(dx*1.15,dy*1.15,dz*1.15);
+    ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([]);ctx.stroke();
+    ctx.fillStyle=col;ctx.font='9px monospace';ctx.fillText(lab,x1+2,y1+3);
+  }
+  ctx.globalAlpha=1;
+
+  let e1=[1,0,0];
+  const d=nx*e1[0]+ny*e1[1]+nz*e1[2];
+  if(Math.abs(d)>0.85)e1=[0,1,0];
+  const d2=e1[0]*nx+e1[1]*ny+e1[2]*nz;
+  e1=[e1[0]-d2*nx,e1[1]-d2*ny,e1[2]-d2*nz];
+  const le=Math.hypot(...e1);e1=e1.map(v=>v/le);
+  const e2=[ny*e1[2]-nz*e1[1],nz*e1[0]-nx*e1[2],nx*e1[1]-ny*e1[0]];
+
+  const arcR=0.52,steps=64;
+  ctx.beginPath();
+  for(let i=0;i<=steps;i++){
+    const a=(i/steps)*theta;
+    const x=arcR*(Math.cos(a)*e1[0]+Math.sin(a)*e2[0]);
+    const y=arcR*(Math.cos(a)*e1[1]+Math.sin(a)*e2[1]);
+    const z=arcR*(Math.cos(a)*e1[2]+Math.sin(a)*e2[2]);
+    const[px,py]=pr(x,y,z);
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.strokeStyle='#378ADD';ctx.lineWidth=2;ctx.setLineDash([]);ctx.stroke();
+
+  const aM=theta*0.5;
+  const[mlx,mly]=pr(arcR*(Math.cos(aM)*e1[0]+Math.sin(aM)*e2[0])+0.08,arcR*(Math.cos(aM)*e1[1]+Math.sin(aM)*e2[1]),arcR*(Math.cos(aM)*e1[2]+Math.sin(aM)*e2[2]));
+  ctx.fillStyle='#378ADD';ctx.font='bold 10px monospace';
+  ctx.fillText('θ='+(theta*180/Math.PI).toFixed(0)+'°',mlx+5,mly-3);
+
+  const sc=1.25;
+  const[ax0,ay0]=pr(-nx*sc,-ny*sc,-nz*sc),[ax1,ay1]=pr(nx*sc,ny*sc,nz*sc);
+  ctx.beginPath();ctx.moveTo(ax0,ay0);ctx.lineTo(ax1,ay1);
+  ctx.strokeStyle='#EF9F27';ctx.lineWidth=0.8;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  arrow2d(CX,CY,ax1,ay1,'#EF9F27',1.8);
+  ctx.fillStyle='#EF9F27';ctx.font='bold 11px monospace';
+  ctx.fillText('n̂',ax1+3,ay1-4);
+
+  const rs=theta/Math.PI;
+  const[rv0x,rv0y]=pr(0,0,0),[rv1x,rv1y]=pr(nx*rs,ny*rs,nz*rs);
+  arrow2d(rv0x,rv0y,rv1x,rv1y,'#A78BFA',2);
+}
+
+function rodrigues(nx,ny,nz,t){
+  const c=Math.cos(t),s=Math.sin(t),T=1-c;
+  return[[c+nx*nx*T,nx*ny*T-nz*s,nx*nz*T+ny*s],[ny*nx*T+nz*s,c+ny*ny*T,ny*nz*T-nx*s],[nz*nx*T-ny*s,nz*ny*T+nx*s,c+nz*nz*T]];
+}
+
+function go(){
+  const az=+document.getElementById('az').value;
+  const el=+document.getElementById('el').value;
+  const thD=+document.getElementById('th').value;
+  document.getElementById('azv').textContent=az+'°';
+  document.getElementById('elv').textContent=el+'°';
+  document.getElementById('thv').textContent=thD+'°';
+
+  const t=thD*Math.PI/180,azR=az*Math.PI/180,elR=el*Math.PI/180;
+  const nx=Math.cos(elR)*Math.cos(azR),ny=Math.cos(elR)*Math.sin(azR),nz=Math.sin(elR);
+
+  document.getElementById('rv').textContent=`[${(nx*t).toFixed(3)}, ${(ny*t).toFixed(3)}, ${(nz*t).toFixed(3)}]`;
+
+  const R=rodrigues(nx,ny,nz,t);
+  const mat=document.getElementById('mat');mat.innerHTML='';
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++){
+    const d=document.createElement('div');
+    d.className='cell '+(CELL_MAP[`${i},${j}`]||'');
+    d.textContent=R[i][j].toFixed(3);mat.appendChild(d);
+  }
+
+  const sy=Math.hypot(R[0][0],R[1][0]);
+  const yaw=Math.atan2(R[1][0],R[0][0])*180/Math.PI;
+  const pitch=Math.atan2(-R[2][0],sy)*180/Math.PI;
+  const roll=Math.atan2(R[2][1],R[2][2])*180/Math.PI;
+
+  document.getElementById('fy').innerHTML=`yaw &nbsp; = atan2(<b style="color:#185FA5">${R[1][0].toFixed(3)}</b>, <b style="color:#185FA5">${R[0][0].toFixed(3)}</b>) = <b style="color:#185FA5">${yaw.toFixed(1)}°</b>`;
+  document.getElementById('fp').innerHTML=`pitch = atan2(<b style="color:#A32D2D">${(-R[2][0]).toFixed(3)}</b>, ${sy.toFixed(3)}) = <b style="color:#A32D2D">${pitch.toFixed(1)}°</b>`;
+  document.getElementById('fr').innerHTML=`roll &nbsp;= atan2(<b style="color:#3B6D11">${R[2][1].toFixed(3)}</b>, <b style="color:#3B6D11">${R[2][2].toFixed(3)}</b>) = <b style="color:#3B6D11">${roll.toFixed(1)}°</b>`;
+
+  const bar=v=>((v+180)/360*100).toFixed(1)+'%';
+  document.getElementById('yb').style.width=bar(yaw);
+  document.getElementById('pb').style.width=bar(pitch);
+  document.getElementById('rb').style.width=bar(roll);
+  document.getElementById('yv').textContent=yaw.toFixed(1)+'°';
+  document.getElementById('pv').textContent=pitch.toFixed(1)+'°';
+  document.getElementById('rv2').textContent=roll.toFixed(1)+'°';
+
+  drawSphere(nx,ny,nz,t);
+}
+
+go();
+</script>
